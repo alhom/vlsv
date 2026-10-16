@@ -21,6 +21,7 @@
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
+#include <filesystem>
 
 #include "mpiconversion.h"
 #include "vlsv_common_mpi.h"
@@ -271,10 +272,15 @@ namespace vlsv {
       if (dryRunning == false) {
          if (myrank == masterRank && append == false) MPI_File_delete(const_cast<char*>(fname.c_str()),mpiInfo);
          MPI_Barrier(comm);
-         if (MPI_File_open(comm,const_cast<char*>(fileName.c_str()),accessMode,mpiInfo,&fileptr) != MPI_SUCCESS) {
+         int mpie;
+         mpie = MPI_File_open(comm,const_cast<char*>(fileName.c_str()),accessMode,mpiInfo,&fileptr);
+         if (mpie != MPI_SUCCESS) {
             fileOpen = false;
             if (std::getenv("VLSV_ERRORS_ARE_FATAL") != nullptr){
-               throw std::runtime_error("MPI_File_open failed for file " + fileName);
+               char mpierr[MPI_MAX_ERROR_STRING];
+               int rlen;
+               MPI_Error_string(mpie, mpierr, &rlen);
+               throw std::runtime_error("MPI_File_open failed for file " + fileName + ", cwd: " + filesystem::current_path().string() + ", MPI error: " + std::string(mpierr));
             }
             return fileOpen;
          }
